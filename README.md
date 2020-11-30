@@ -29,7 +29,7 @@ This directory contains the required data and source code to implement the machi
 
 - The data, trained_models and screening folders contain a readme with the appropriate download instructions and explanations.
 
-The NGF and NGF layers folders contain the source code to implement the graph convolution layers and the appropriate featurization. The code was adapted to Keras from https://github.com/keiserlab/keras-neural-graph-fingerprint.
+The NGF and NGF layers folders contain the source code to implement the graph convolution layers and the appropriate featurization. The code was adapted from https://github.com/keiserlab/keras-neural-graph-fingerprint.
 
 The utility folder contains the following functions:
 
