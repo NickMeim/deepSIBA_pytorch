@@ -41,16 +41,16 @@ class enc_graph(nn.Module):
         self.g1 = NeuralGraphHidden(params["num_atom_features"],params["num_bond_features"],params["graph_conv_width"][0],params["max_degree"] , activ = None, bias = True)
         self.bn1 = nn.BatchNorm1d(num_features=params["graph_conv_width"][0],momentum=0.6)
 
-        self.g2 = NeuralGraphHidden(params["num_atom_features"],params["num_bond_features"],params["graph_conv_width"][1],params["max_degree"] , activ = None, bias = True)
+        self.g2 = NeuralGraphHidden(params["graph_conv_width"][0],params["num_bond_features"],params["graph_conv_width"][1],params["max_degree"] , activ = None, bias = True)
         self.bn2 = nn.BatchNorm1d(num_features=params["graph_conv_width"][1],momentum=0.6)
 
-        self.g3 = NeuralGraphHidden(params["num_atom_features"],params["num_bond_features"],params["graph_conv_width"][2],params["max_degree"] , activ = None, bias = True)
+        self.g3 = NeuralGraphHidden(params["graph_conv_width"][1],params["num_bond_features"],params["graph_conv_width"][2],params["max_degree"] , activ = None, bias = True)
         self.bn3 = nn.BatchNorm1d(num_features=params["graph_conv_width"][2],momentum=0.6)
 
 
         self.conv1d=nn.Conv1d(params["conv1d_in"], params["conv1d_out"], params["kernel_size"],bias=False)
         nn.init.xavier_normal_(self.conv1d.weight)
-        self.bn4= nn.BatchNorm1d(num_features=params["conv1d_out"],momentum=0.6)
+        self.bn4= nn.BatchNorm1d(num_features=int((params["graph_conv_width"][1]-params["kernel_size"])/params["kernel_size"]+1),momentum=0.6)
         self.dropout=params["dropout_encoder"]
 
     def forward(self,atoms,bonds,edges):
@@ -96,15 +96,15 @@ class siamese_model(nn.Module):
         self.encoder = enc_graph(params)
         self.conv1 = nn.Conv1d(params["conv1d_dist_in"][0], params["conv1d_dist_out"][0], params["conv1d_dist_kernels"][0],bias=False)
         nn.init.xavier_normal_(self.conv1.weight)
-        self.bn1 = nn.BatchNorm1d(num_features=params["conv1d_dist_out"][0],momentum=0.6)
+        self.bn1 = nn.BatchNorm1d(num_features=int((params["graph_conv_width"][1]-params["conv1d_dist_kernels"][0])/params["conv1d_dist_kernels"][0]+1),momentum=0.6)
         self.drop_dist1 = params["dropout_dist"]
         self.conv2 = nn.Conv1d(params["conv1d_dist_in"][1], params["conv1d_dist_out"][1], params["conv1d_dist_kernels"][1],bias=False)
         nn.init.xavier_normal_(self.conv2.weight)
-        self.bn2 = nn.BatchNorm1d(num_features=params["conv1d_dist_out"][1],momentum=0.6)
+        self.bn2 = nn.BatchNorm1d(num_features=int((params["graph_conv_width"][1]-params["conv1d_dist_kernels"][1])/params["conv1d_dist_kernels"][1]+1),momentum=0.6)
         self.drop_dist2 = params["dropout_dist"]
         self.pool = nn.MaxPool1d(params["pool_size"])
         self.out_pool=int((params["conv1d_dist_out"][1]-params["pool_size"])/params["pool_size"]+1)
-        self.bn3 = nn.BatchNorm1d(num_features=self.out_pool,momentum=0.6)
+        self.bn3 = nn.BatchNorm1d(num_features=int((params["graph_conv_width"][1]-params["conv1d_dist_kernels"][1])/params["conv1d_dist_kernels"][1]+1),momentum=0.6)
         self.flatten = nn.Flatten()
         self.out_flat=int(self.out_pool*params["graph_conv_width"][2])
         self.dense1 = nn.Linear(self.out_flat, params["dense_size"][0], bias=True)
@@ -148,8 +148,9 @@ class siamese_model(nn.Module):
         x = F.relu(x)
         x = F.dropout(x, training=self.training, p=self.drop_dist2)
 
+        x = x.transpose(1,2)
         x = self.pool(x)
-        x=x.transpose(1,2)
+        #x=x.transpose(1,2)
         x = self.bn3(x)
         x=x.transpose(1,2)
         x = self.flatten(x)
@@ -171,9 +172,6 @@ class siamese_model(nn.Module):
         x = F.dropout(x, training=self.training, p=self.drop_dist6)
 
         #Final Gaussian Layer to predict mean distance and standard deaviation of distance
-        if params["ConGauss"]:
-            mu, sigma = self.gaussian(x)
-        else:
-            mu, sigma = self.gaussian(x) #default used most of the time
-
+        mu, sigma = self.gaussian(x)
+        
         return [mu,sigma]

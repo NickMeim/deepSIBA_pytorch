@@ -190,7 +190,7 @@ class NeuralGraphHidden(nn.Module):
         self.inner_3D_layers = []
         for degree in range(max_degree):
             # Initialise inner layer, and rename it
-            inner_layer = nn.Linear(self.input_size, self.hidden_size, bias=bias)
+            inner_layer = nn.Linear(self.input_size, self.hidden_size, bias=bias).cuda()
 
             # Store inner_3D_layer and it's weights
             self.inner_3D_layers.append(inner_layer)
@@ -235,6 +235,8 @@ class NeuralGraphHidden(nn.Module):
 
             # Multiply with hidden merge layer
             #   (use time Distributed because we are dealing with 2D input/3D for batches)
+            #print(summed_features.shape)
+            #print(self.inner_3D_layers[degree].weight.shape)
             new_unmasked_features = self.inner_3D_layers[degree](summed_features)
             if self.activ is not None:
               new_unmasked_features=self.relu(new_unmasked_features)
