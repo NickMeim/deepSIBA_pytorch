@@ -21,52 +21,56 @@ from sklearn.metrics import mean_squared_error
 
 #Define custom metrics for evaluation
 def r_square(y_true, y_pred):
-    from keras import backend as K
-    (y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-    SS_res =  K.sum(K.square(y_true - y_pred))
-    SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
-    return (1 - SS_res/(SS_tot + K.epsilon()))
+    #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
+    y_pred=y_pred[0]
+    SS_res =  torch.sum(torch.square(y_true - y_pred))
+    SS_tot = torch.sum(torch.square(y_true - torch.mean(y_true)))
+    return (1 - SS_res/(SS_tot + 1e-7))
 
 def get_cindex(y_true, y_pred):
-    (y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-    g = tf.subtract(tf.expand_dims(y_pred, -1), y_pred)
-    g = tf.cast(g == 0.0, tf.float32) * 0.5 + tf.cast(g > 0.0, tf.float32)
+    #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
+    y_pred=y_pred[0]
+    g = torch.sub(y_pred.unsqueeze(-1), y_pred)
+    g = (g == 0.0).type(torch.FloatTensor) * 0.5 + (g > 0.0).type(torch.FloatTensor)
 
-    f = tf.subtract(tf.expand_dims(y_true, -1), y_true) > 0.0
-    f = tf.linalg.band_part(tf.cast(f, tf.float32), -1, 0)
+    f = torch.sub(y_true.unsqueeze(-1), y_true) > 0.0
+    f = torch.tril(f.type(torch.FloatTensor))
 
-    g = tf.reduce_sum(tf.multiply(g, f))
-    f = tf.reduce_sum(f)
+    g = torch.sum(g*f)
+    f = torch.sum(f)
 
-    return tf.where(tf.equal(g, 0), 0.0, g/f)
+    return torch.where(g==0.0, torch.tensor(0.0), g/f)
 
 def pearson_r(y_true, y_pred):
-    (y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
+    #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
+    y_pred=y_pred[0]
     x = y_true
     y = y_pred
-    mx = K.mean(x, axis=0)
-    my = K.mean(y, axis=0)
+    mx = torch.mean(x, dim=0)
+    my = torch.mean(y, dim=0)
     xm, ym = x - mx, y - my
-    r_num = K.sum(xm * ym)
-    x_square_sum = K.sum(xm * xm)
-    y_square_sum = K.sum(ym * ym)
-    r_den = K.sqrt(x_square_sum * y_square_sum)
+    r_num = torch.sum(xm * ym)
+    x_square_sum = torch.sum(xm * xm)
+    y_square_sum = torch.sum(ym * ym)
+    r_den = torch.sqrt(x_square_sum * y_square_sum)
     r = r_num / r_den
-    return K.mean(r)
+    return torch.mean(r)
 
 def custom_mse(y_true,y_pred):
-    (y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-    er=K.mean(K.square(y_pred - y_true), axis=-1)
+    #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
+    y_pred=y_pred[0]
+    er=torch.mean(torch.square(y_pred - y_true), dim=-1)
     return er
 
 def mse_sliced(th):
     def mse_similars(y_true,y_pred):
-        (y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-        condition = tf.math.less_equal(y_pred,th)
-        indices = tf.where(condition)
-        slice_true = tf.gather_nd(y_true,indices)
-        slice_pred = tf.gather_nd(y_pred,indices)
-        mse_sliced = K.mean(K.square(slice_pred - slice_true), axis=-1)
+        #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
+        y_pred=y_pred[0]
+        condition = y_pred<=th
+        indices = torch.where(condition)
+        slice_true=y_true[indices[0]]
+        slice_pred=y_pred[indices[0]]
+        mse_sliced = torch.mean(torch.square(slice_pred - slice_true))
         return mse_sliced
     return mse_similars
 
