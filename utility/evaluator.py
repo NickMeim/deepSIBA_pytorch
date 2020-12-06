@@ -62,7 +62,7 @@ def custom_mse(y_true,y_pred):
     er=torch.mean(torch.square(y_pred - y_true), dim=-1)
     return er
 
-def mse_sliced(th):
+def mse_sliced(y_true,y_pred,th):
     def mse_similars(y_true,y_pred):
         #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
         y_pred=y_pred[0]
