@@ -22,14 +22,14 @@ from sklearn.metrics import mean_squared_error
 #Define custom metrics for evaluation
 def r_square(y_true, y_pred):
     #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-    y_pred=y_pred[0]
+    y_pred=y_pred[:,0]
     SS_res =  torch.sum(torch.square(y_true - y_pred))
     SS_tot = torch.sum(torch.square(y_true - torch.mean(y_true)))
     return (1 - SS_res/(SS_tot + 1e-7))
 
 def get_cindex(y_true, y_pred):
     #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-    y_pred=y_pred[0]
+    y_pred=y_pred[:,0]
     g = torch.sub(y_pred.unsqueeze(-1), y_pred)
     g = (g == 0.0).type(torch.FloatTensor) * 0.5 + (g > 0.0).type(torch.FloatTensor)
 
@@ -43,7 +43,7 @@ def get_cindex(y_true, y_pred):
 
 def pearson_r(y_true, y_pred):
     #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-    y_pred=y_pred[0]
+    y_pred=y_pred[:,0]
     x = y_true
     y = y_pred
     mx = torch.mean(x, dim=0)
@@ -58,14 +58,14 @@ def pearson_r(y_true, y_pred):
 
 def custom_mse(y_true,y_pred):
     #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-    y_pred=y_pred[0]
-    er=torch.mean(torch.square(y_pred - y_true), dim=-1)
+    y_pred=y_pred[:,0]
+    er=torch.mean(torch.square(y_pred - y_true))
     return er
 
 def mse_sliced(y_true,y_pred,th):
     def mse_similars(y_true,y_pred):
         #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-        y_pred=y_pred[0]
+        y_pred=y_pred[:,0]
         condition = y_pred<=th
         indices = torch.where(condition)
         slice_true=y_true[indices[0]]

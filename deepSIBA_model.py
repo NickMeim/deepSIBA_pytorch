@@ -173,5 +173,6 @@ class siamese_model(nn.Module):
 
         #Final Gaussian Layer to predict mean distance and standard deaviation of distance
         mu, sigma = self.gaussian(x)
+        out=torch.cat([mu,sigma],dim=-1)
         
-        return [mu,sigma]
+        return out

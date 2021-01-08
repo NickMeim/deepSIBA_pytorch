@@ -21,8 +21,8 @@ from math import ceil
 #Define custom loss and gaussian layer
 def custom_loss(y_true, y_pred):
     #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-    sigma = y_pred[1]
-    y_pred = y_pred[0]
+    sigma = y_pred[:,1]
+    y_pred = y_pred[:,0]
     return torch.mean(0.5*torch.log(sigma) + 0.5*torch.div(torch.square(y_true - y_pred), sigma)) + 1e-6
 
 class GaussianLayer(nn.Module):

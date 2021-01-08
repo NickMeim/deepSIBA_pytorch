@@ -187,13 +187,7 @@ class NeuralGraphHidden(nn.Module):
         self.max_degree = max_degree
         # Add the dense layers (that contain trainable params)
         #   (for each degree we convolve with a different weight matrix)
-        self.inner_3D_layers = []
-        for degree in range(max_degree):
-            # Initialise inner layer, and rename it
-            inner_layer = nn.Linear(self.input_size, self.hidden_size, bias=bias).cuda()
-
-            # Store inner_3D_layer and it's weights
-            self.inner_3D_layers.append(inner_layer)
+        self.inner_3D_layers = nn.ModuleList([nn.Linear(self.input_size, self.hidden_size, bias=bias) for degree in range(self.max_degree)])
 
         self.init_weights(NeuralGraphHidden)
 
