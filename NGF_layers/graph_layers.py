@@ -21,23 +21,7 @@ from copy import deepcopy
 #import NGF.utils
 
 
-def temporal_padding(x, padding=(1, 1), padvalue = 0):
-  """Pads the middle dimension of a 3D tensor.
-  Arguments:
-      x: Tensor or variable.
-      padding: Tuple of 2 integers, how many zeros to
-          add at the start and end of dim 1.
-  Returns:
-      A padded 3D tensor.
-  """
-  assert len(padding) == 2
-  pattern = (0, 0, padding[0], padding[1], 0, 0)
-  return F.pad(x, pattern,'constant', padvalue)
-  
-  
-  
-  
-def neighbour_lookup(atoms, edges, maskvalue=0, include_self=False):
+def neighbour_lookup(atoms, edges,atom_degrees, include_self=False):
     ''' Looks up the features of an all atoms neighbours, for a batch of molecules.
 
     # Arguments:
@@ -61,49 +45,34 @@ def neighbour_lookup(atoms, edges, maskvalue=0, include_self=False):
 
     # The lookup masking trick: We add 1 to all indices, converting the
     #   masking value of -1 to a valid 0 index.
-    if torch.cuda.is_available():
-      device=torch.device('cuda')
-    else:
-      device=torch.device('cpu')
-    masked_edges = edges + 1
-    # We then add a padding vector at index 0 by padding to the left of the
-    #   lookup matrix with the value that the new mask should get
-    masked_atoms = temporal_padding(atoms, (1,0), padvalue=maskvalue)
+    #if torch.cuda.is_available():
+    #  device=torch.device('cuda')
+    #else:
+    #  device=torch.device('cpu')
 
 
     # Import dimensions
-    atoms_shape = list(masked_atoms.size())
+    atoms_shape = list(atoms.size())
     batch_n = atoms_shape[0]
-    lookup_size = atoms_shape[1]
     num_atom_features = atoms_shape[2]
 
-    edges_shape = list(masked_edges.size())
+    edges_shape = list(edges.size())
     max_atoms = edges_shape[1]
     max_degree = edges_shape[2]
 
-    # create broadcastable offset
-    offset_shape = (batch_n, 1, 1)
-    offset = torch.arange(0,batch_n).view(offset_shape)
-    offset *= lookup_size
-    offset=offset.to(device,non_blocking=True)
-
-    # apply offset to account for the fact that after reshape, all individual
-    #   batch_n indices will be combined into a single big index
-    flattened_atoms = masked_atoms.view(-1, num_atom_features)
-    flattened_edges = torch.add(masked_edges.type(torch.cuda.LongTensor), offset.type(torch.cuda.LongTensor)).view(batch_n, -1)
-
-    # Gather flattened
-    flat_list=[]
-    for n in range(batch_n):
-      flat_list.append(flattened_atoms[flattened_edges[n]])
-    flattened_result=torch.stack(flat_list).to(device,non_blocking=True)
-
-    # Unflatten result
-    output_shape = (batch_n, max_atoms, max_degree, num_atom_features)
-    output = flattened_result.view(output_shape)
-
     if include_self:
-        return torch.cat([torch.unsqueeze(atoms, 2), output], dim=2)
+        new_edges=torch.cat([torch.reshape(torch.linspace(0,max_atoms-1,max_atoms).type(torch.cuda.LongTensor).repeat(batch_n),(batch_n,max_atoms,1)),edges.type(torch.cuda.LongTensor)],dim=-1)
+        #print(new_edges.shape)
+        #print(atoms.shape)
+        output=torch.reshape(atoms,(batch_n*max_atoms,num_atom_features))[torch.reshape(new_edges,(batch_n*max_atoms,max_degree+1))]
+        output=output.view(batch_n,max_atoms,max_degree+1,num_atom_features)
+        for degree in range(max_degree):
+            output[atom_degrees[:,0:max_atoms,0].eq(degree),:,(max_degree-degree+1):max_degree+1]=0
+    else:
+        output=torch.reshape(atoms,(batch_n*max_atoms,num_atom_features))[torch.reshape(edges,(batch_n*max_atoms,max_degree))]
+        output=output.view(batch_n,max_atoms,max_degree,num_atom_features)
+        for degree in range(max_degree):
+            output[atom_degrees[:,0:max_atoms,0].eq(degree),:,(max_degree-degree):max_degree]=0
     return output
 
 
@@ -209,7 +178,7 @@ class NeuralGraphHidden(nn.Module):
         atom_degrees = torch.sum((~edges.eq(-1)).type(torch.cuda.FloatTensor), dim=-1, keepdim=True)
 
         # For each atom, look up the features of it's neighbour
-        neighbour_atom_features = neighbour_lookup(atoms, edges, include_self=True)
+        neighbour_atom_features = neighbour_lookup(atoms, edges,atom_degrees, include_self=True)
 
         # Sum along degree axis to get summed neighbour features
         summed_atom_features = torch.sum(neighbour_atom_features, dim=-2).type(torch.cuda.FloatTensor)

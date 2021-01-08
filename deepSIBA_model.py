@@ -22,7 +22,7 @@ from copy import deepcopy
 import NGF_layers.features
 import NGF_layers.graph_layers
 from NGF_layers.features import one_of_k_encoding, one_of_k_encoding_unk, atom_features, bond_features, num_atom_features, num_bond_features, padaxis, tensorise_smiles #, concat_mol_tensors
-from NGF_layers.graph_layers import temporal_padding, neighbour_lookup, NeuralGraphHidden
+from NGF_layers.graph_layers import neighbour_lookup, NeuralGraphHidden
 from math import ceil
 from sklearn.metrics import mean_squared_error
 from utility.gaussian import GaussianLayer, custom_loss, ConGaussianLayer
