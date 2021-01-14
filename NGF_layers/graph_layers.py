@@ -175,16 +175,18 @@ class NeuralGraphHidden(nn.Module):
         num_bond_features = list(bonds.size())[-1]
 
         # Create a matrix that stores for each atom, the degree it is
-        atom_degrees = torch.sum((~edges.eq(-1)).type(torch.cuda.FloatTensor), dim=-1, keepdim=True)
+        atom_degrees = torch.sum((edges.eq(1)), dim=-1, keepdim=True) - 1
 
         # For each atom, look up the features of it's neighbour
-        neighbour_atom_features = neighbour_lookup(atoms, edges,atom_degrees, include_self=True)
+        #neighbour_atom_features = neighbour_lookup(atoms, edges,atom_degrees, include_self=True)
 
         # Sum along degree axis to get summed neighbour features
-        summed_atom_features = torch.sum(neighbour_atom_features, dim=-2).type(torch.cuda.FloatTensor)
+        #summed_atom_features = torch.sum(neighbour_atom_features, dim=-2).type(torch.cuda.FloatTensor)
+        summed_atom_features = torch.bmm(edges,atoms)
 
         # Sum the edge features for each atom
-        summed_bond_features = torch.sum(bonds, dim=-2).type(torch.cuda.FloatTensor)
+        #summed_bond_features = torch.sum(bonds, dim=-2).type(torch.cuda.FloatTensor)
+        summed_bond_features = torch.bmm(edges,torch.sum(bonds, dim=-2))
 
         # Concatenate the summed atom and bond features
         summed_features = torch.cat([summed_atom_features, summed_bond_features], dim=-1)
@@ -194,7 +196,7 @@ class NeuralGraphHidden(nn.Module):
         for degree in range(self.max_degree):
 
             # Create mask for this degree
-            atom_masks_this_degree = atom_degrees.eq(degree).type(torch.cuda.FloatTensor)
+            atom_masks_this_degree = atom_degrees.eq(degree)
 
             # Multiply with hidden merge layer
             #   (use time Distributed because we are dealing with 2D input/3D for batches)
@@ -205,7 +207,7 @@ class NeuralGraphHidden(nn.Module):
               new_unmasked_features=self.relu(new_unmasked_features)
 
             # Do explicit masking because TimeDistributed does not support masking
-            new_masked_features = new_unmasked_features.type(torch.cuda.FloatTensor) * atom_masks_this_degree
+            new_masked_features = new_unmasked_features * atom_masks_this_degree
 
             new_features_by_degree.append(new_masked_features)
 

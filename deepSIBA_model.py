@@ -55,29 +55,29 @@ class enc_graph(nn.Module):
 
     def forward(self,atoms,bonds,edges):
         x1 = self.g1([atoms,bonds,edges])
-        x1=x1.transpose(1,2)
+        x1=torch.transpose(x1,1,2)
         x1 = self.bn1(x1)
-        x1=x1.transpose(1,2)
+        x1=torch.transpose(x1,1,2)
         x1 = F.relu(x1)
 
         x2 = self.g2([x1,bonds,edges])
-        x2=x2.transpose(1,2)
+        x2=torch.transpose(x2,1,2)
         x2 = self.bn2(x2)
-        x2=x2.transpose(1,2)
+        x2=torch.transpose(x2,1,2)
         x2 = F.relu(x2)
 
         x3 = self.g3([x2,bonds,edges])
-        x3=x3.transpose(1,2)
+        x3=torch.transpose(x3,1,2)
         x3 = self.bn3(x3)
-        x3=x3.transpose(1,2)
+        x3=torch.transpose(x3,1,2)
         x3 = F.relu(x3)
 
         x4 = self.conv1d(x3)
-        x4=x4.transpose(1,2)
+        x4=torch.transpose(x4,1,2)
         x4 = self.bn4(x4)
-        x4=x4.transpose(1,2)
+        x4=torch.transpose(x4,1,2)
         x4 = F.relu(x4)
-        x4 = F.dropout(x4, training=self.training, p=self.dropout)
+        x4 = F.dropout(x4, p=self.dropout,training = self.training)
 
         return x4
 
@@ -135,41 +135,41 @@ class siamese_model(nn.Module):
         L1_distance=abs(encoded_1-encoded_2)
 
         x = self.conv1(L1_distance)
-        x=x.transpose(1,2)
+        x=torch.transpose(x,1,2)
         x = self.bn1(x)
-        x=x.transpose(1,2)
+        x=torch.transpose(x,1,2)
         x = F.relu(x)
-        x = F.dropout(x, training=self.training, p=self.drop_dist1)
+        x = F.dropout(x, p=self.drop_dist1,training = self.training)
 
         x = self.conv2(x)
-        x=x.transpose(1,2)
+        x=torch.transpose(x,1,2)
         x = self.bn2(x)
-        x=x.transpose(1,2)
+        x=torch.transpose(x,1,2)
         x = F.relu(x)
-        x = F.dropout(x, training=self.training, p=self.drop_dist2)
+        x = F.dropout(x, p=self.drop_dist2,training = self.training)
 
-        x = x.transpose(1,2)
+        x = torch.transpose(x,1,2)
         x = self.pool(x)
         #x=x.transpose(1,2)
         x = self.bn3(x)
-        x=x.transpose(1,2)
+        x=torch.transpose(x,1,2)
         x = self.flatten(x)
 
         x = self.dense1(x)
         x = self.bn4(x)
         x = F.relu(x)
-        x = F.dropout(x, training=self.training, p=self.drop_dist4)
+        x = F.dropout(x, p=self.drop_dist4,training = self.training)
 
 
         x = self.dense2(x)
         x = self.bn5(x)
         x = F.relu(x)
-        x = F.dropout(x, training=self.training, p=self.drop_dist5)
+        x = F.dropout(x, p=self.drop_dist5,training = self.training)
 
         x = self.dense3(x)
         x = self.bn6(x)
         x = F.relu(x)
-        x = F.dropout(x, training=self.training, p=self.drop_dist6)
+        x = F.dropout(x, p=self.drop_dist6,training = self.training)
 
         #Final Gaussian Layer to predict mean distance and standard deaviation of distance
         mu, sigma = self.gaussian(x)

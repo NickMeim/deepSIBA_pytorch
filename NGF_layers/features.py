@@ -127,9 +127,14 @@ def tensorise_smiles(smiles, max_degree=5, max_atoms=None):
     # preallocate atom tensor with 0's and bond tensor with -1 (because of 0 index)
     # If max_degree or max_atoms is set to None (auto), initialise dim as small
     #   as possible (1)
-    atom_tensor = np.zeros((n, max_atoms or 1, n_atom_features))
-    bond_tensor = np.zeros((n, max_atoms or 1, max_degree or 1, n_bond_features))
-    edge_tensor = -np.ones((n, max_atoms or 1, max_degree or 1), dtype=int)
+    atom_tensor = np.zeros((n, max_atoms or 1, n_atom_features),dtype='float32')
+    bond_tensor = np.zeros((n, max_atoms or 1, max_degree or 1, n_bond_features),dtype='float32')
+    edge_tensor = np.zeros((n, max_atoms or 1, max_atoms or 1),dtype='float32')
+    di=np.diag_indices(max_atoms)
+    for i in range(n):
+        x=edge_tensor[i]
+        x[di]=1
+        edge_tensor[i]=x
 
     for mol_ix, s in enumerate(smiles):
 
@@ -173,7 +178,7 @@ def tensorise_smiles(smiles, max_degree=5, max_atoms=None):
             if new_degree > bond_tensor.shape[2]:
                 assert max_degree is None, 'too many neighours ({0}) in molecule: {1}'.format(new_degree, s)
                 bond_tensor = padaxis(bond_tensor, new_degree, axis=2)
-                edge_tensor = padaxis(edge_tensor, new_degree, axis=2, pad_value=-1)
+                #edge_tensor = padaxis(edge_tensor, new_degree, axis=2, pad_value=-1)
 
             # store bond features
             bond_features_var = np.array(bond_features(bond), dtype=int)
@@ -187,68 +192,6 @@ def tensorise_smiles(smiles, max_degree=5, max_atoms=None):
         #store connectivity matrix
         for a1_ix, neighbours in enumerate(connectivity_mat):
             degree = len(neighbours)
-            edge_tensor[mol_ix, a1_ix, : degree] = neighbours
+            edge_tensor[mol_ix, a1_ix, neighbours] = 1.
 
     return atom_tensor, bond_tensor, edge_tensor
-
-def concat_mol_tensors(mol_tensors_list, match_degree=True, match_max_atoms=False):
-    '''Concatenates a list of molecule tensors
-
-    # Arguments:
-        mol_tensor_list: list of molecule tensors (e.g. list of
-        `(atoms, bonds, edges)`-triplets)
-        match_degree: bool, if True, the degrees of all tensors should match,
-            if False, unmatching degrees will be padded to align them.
-        match_max_atoms: bool, simular to match_degree but for max_atoms
-
-    # Retuns:
-        a single molecule tensor (as returned by `tensorise_smiles`)
-    '''
-
-    assert isinstance(mol_tensors_list, (tuple, list)), 'Provide a list or tuple of molecule tensors to concatenate'
-
-    # get max_atoms (#1) of atoms (#0) tensor of first batch (#0)
-    # and max_degree (#2) of bonds (#1) tensor of first batch (#0)
-    max_atoms = mol_tensors_list[0][0].shape[1]
-    max_degree = mol_tensors_list[0][1].shape[2]
-
-
-    # Obtain the max_degree and max_atoms of all tensors in the list
-    for atoms, bonds, edges in mol_tensors_list:
-        assert bonds.shape[0] == edges.shape[0] == atoms.shape[0], "batchsize doesn't match within tensor"
-        assert bonds.shape[1] == edges.shape[1] == atoms.shape[1], "max_atoms doesn't match within tensor"
-        assert bonds.shape[2] == edges.shape[2], "degree doesn't match within tensor"
-
-        if match_max_atoms:
-            assert max_atoms == atoms.shape[1], '`max_atoms` of molecule tensors does not match, set `match_max_atoms` to False to adjust'
-        else:
-            max_atoms = max(max_atoms, atoms.shape[1])
-
-        if match_degree:
-            assert max_degree == bonds.shape[2], '`degree` of molecule tensors does not match, set `match_degree` to False to adjust'
-        else:
-            max_degree = max(max_degree,  bonds.shape[2])
-
-    # Pad if necessary and separate tensors
-    atoms_list = []
-    bonds_list = []
-    edges_list = []
-    for atoms, bonds, edges in mol_tensors_list:
-
-        atoms = padaxis(atoms, max_atoms, axis=1)
-        bonds = padaxis(bonds, max_atoms, axis=1)
-        edges = padaxis(edges, max_atoms, axis=1, pad_value=-1)
-
-        bonds = padaxis(bonds, max_degree, axis=2)
-        edges = padaxis(edges, max_degree, axis=2, pad_value=-1)
-
-        atoms_list.append(atoms)
-        bonds_list.append(bonds)
-        edges_list.append(edges)
-
-    #stack along batch-size axis
-    atoms = np.concatenate(atoms_list, axis=0)
-    bonds = np.concatenate(bonds_list, axis=0)
-    edges = np.concatenate(edges_list, axis=0)
-
-    return atoms, bonds, edges
