@@ -17,64 +17,7 @@ from rdkit import Chem
 from functools import partial
 from multiprocessing import cpu_count, Pool
 from copy import deepcopy
-#from NGF.utils import filter_func_args, mol_shapes_to_dims
-#import NGF.utils
-
-
-def neighbour_lookup(atoms, edges,atom_degrees, include_self=False):
-    ''' Looks up the features of an all atoms neighbours, for a batch of molecules.
-
-    # Arguments:
-        atoms (K.tensor): of shape (batch_n, max_atoms, num_atom_features)
-        edges (K.tensor): of shape (batch_n, max_atoms, max_degree) with neighbour
-            indices and -1 as padding value
-        maskvalue (numerical): the maskingvalue that should be used for empty atoms
-            or atoms that have no neighbours (does not affect the input maskvalue
-            which should always be -1!)
-        include_self (bool): if True, the featurevector of each atom will be added
-            to the list feature vectors of its neighbours
-
-    # Returns:
-        neigbour_features (K.tensor): of shape (batch_n, max_atoms(+1), max_degree,
-            num_atom_features) depending on the value of include_self
-
-    # Todo:
-        - make this function compatible with Tensorflow, it should be quite trivial
-            because there is an equivalent of `T.arange` in tensorflow.
-    '''
-
-    # The lookup masking trick: We add 1 to all indices, converting the
-    #   masking value of -1 to a valid 0 index.
-    #if torch.cuda.is_available():
-    #  device=torch.device('cuda')
-    #else:
-    #  device=torch.device('cpu')
-
-
-    # Import dimensions
-    atoms_shape = list(atoms.size())
-    batch_n = atoms_shape[0]
-    num_atom_features = atoms_shape[2]
-
-    edges_shape = list(edges.size())
-    max_atoms = edges_shape[1]
-    max_degree = edges_shape[2]
-
-    if include_self:
-        new_edges=torch.cat([torch.reshape(torch.linspace(0,max_atoms-1,max_atoms).type(torch.cuda.LongTensor).repeat(batch_n),(batch_n,max_atoms,1)),edges.type(torch.cuda.LongTensor)],dim=-1)
-        #print(new_edges.shape)
-        #print(atoms.shape)
-        output=torch.reshape(atoms,(batch_n*max_atoms,num_atom_features))[torch.reshape(new_edges,(batch_n*max_atoms,max_degree+1))]
-        output=output.view(batch_n,max_atoms,max_degree+1,num_atom_features)
-        for degree in range(max_degree):
-            output[atom_degrees[:,0:max_atoms,0].eq(degree),:,(max_degree-degree+1):max_degree+1]=0
-    else:
-        output=torch.reshape(atoms,(batch_n*max_atoms,num_atom_features))[torch.reshape(edges,(batch_n*max_atoms,max_degree))]
-        output=output.view(batch_n,max_atoms,max_degree,num_atom_features)
-        for degree in range(max_degree):
-            output[atom_degrees[:,0:max_atoms,0].eq(degree),:,(max_degree-degree):max_degree]=0
-    return output
-
+from functools import reduce
 
 class NeuralGraphHidden(nn.Module):
     ''' Hidden Convolutional layer in a Neural Graph (as in Duvenaud et. al.,
@@ -196,7 +139,7 @@ class NeuralGraphHidden(nn.Module):
         for degree in range(self.max_degree):
 
             # Create mask for this degree
-            atom_masks_this_degree = atom_degrees.eq(degree)
+            atom_masks_this_degree = atom_degrees.eq(degree+1)
 
             # Multiply with hidden merge layer
             #   (use time Distributed because we are dealing with 2D input/3D for batches)
@@ -213,5 +156,6 @@ class NeuralGraphHidden(nn.Module):
 
         # Finally sum the features of all atoms
         new_features = torch.stack(new_features_by_degree,dim=0).sum(dim=0)
+        #new_features = reduce(torch.add, new_features_by_degree)
 
         return new_features
