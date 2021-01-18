@@ -32,10 +32,10 @@ class GaussianLayer(nn.Module):
         super(GaussianLayer, self).__init__(**kwargs)
         
         self.linear1=nn.Linear(input_shape, output_dim, bias=True)
-        nn.init.xavier_normal_(self.linear1.weight)
-        nn.init.zeros_(self.linear1.bias)
         self.linear2=nn.Linear(input_shape, output_dim, bias=True)
-        nn.init.xavier_normal_(self.linear2.weight)
+        nn.init.xavier_normal_(self.linear1.weight,gain=nn.init.calculate_gain('relu'))
+        nn.init.zeros_(self.linear1.bias)
+        nn.init.xavier_normal_(self.linear2.weight,gain=nn.init.calculate_gain('relu'))
         nn.init.zeros_(self.linear2.bias)
         
     def forward(self, x):
@@ -51,10 +51,10 @@ class ConGaussianLayer(nn.Module):
         super(ConGaussianLayer, self).__init__(**kwargs)
         
         self.linear1=nn.Linear(input_shape, output_dim, bias=True)
-        nn.init.xavier_normal_(self.linear1.weight)
-        nn.init.zeros_(self.linear1.bias)
         self.linear2=nn.Linear(input_shape, output_dim, bias=True)
-        nn.init.xavier_normal_(self.linear2.weight)
+        nn.init.xavier_normal_(self.linear1.weight,gain=nn.init.calculate_gain('relu'))
+        nn.init.zeros_(self.linear1.bias)
+        nn.init.xavier_normal_(self.linear2.weight,gain=nn.init.calculate_gain('relu'))
         nn.init.zeros_(self.linear2.bias)
         
     def forward(self, x):
@@ -63,6 +63,6 @@ class ConGaussianLayer(nn.Module):
         output_mu[output_mu > 1] = 1
         output_sig = self.linear2(x)
         output_sig_pos = torch.log(1 + torch.exp(output_sig)) + 1e-06  
-        output_sig_pos  = F.relu(output_sig_pos) + 1e-06
+        output_sig_pos  = F.relu(output_sig_pos)
         output_sig_pos[output_sig_pos > 1] = 1
         return [output_mu, output_sig_pos]
