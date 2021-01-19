@@ -28,12 +28,12 @@ from sklearn.metrics import mean_squared_error
 from utility.gaussian import GaussianLayer, custom_loss, ConGaussianLayer
 from utility.evaluator import r_square, get_cindex, pearson_r,custom_mse, mse_sliced, model_evaluate
 from functools import reduce
-#from pytorch_lightning.core.lightning import LightningModule
-#import pytorch_lightning
-#from torch import norm
+from pytorch_lightning.core.lightning import LightningModule
+import pytorch_lightning
+from torch import norm
 
 #Define siamese encoder
-class enc_graph(nn.Module):
+class enc_graph(LightningModule):
     def __init__(self,params):
         super(enc_graph, self).__init__()
 
@@ -94,12 +94,12 @@ class enc_graph(nn.Module):
     #return graph_encoder
 
 #Define operations of distance module after the siamese encoders
-class siamese_model(nn.Module):
+class siamese_model(LightningModule):
     def __init__(self,params):
         super(siamese_model, self).__init__()
 
-        #self.learning_rate = params["lr"]
-        #self.l2reg= params["l2reg"]
+        self.learning_rate = params["lr"]
+        self.l2reg= params["l2reg"]
         self.encoder = enc_graph(params)
         self.conv1 = nn.Conv1d(params["conv1d_dist_in"][0], params["conv1d_dist_out"][0], params["conv1d_dist_kernels"][0],bias=False)
         self.bn1 = nn.BatchNorm1d(num_features=int((params["graph_conv_width"][1]-params["conv1d_dist_kernels"][0])/params["conv1d_dist_kernels"][0]+1),momentum=0.6)
@@ -190,3 +190,16 @@ class siamese_model(nn.Module):
         out=torch.cat([mu,sigma],dim=-1)
         
         return out
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+
+    def training_step(self, batch, batch_idx):
+        atom1,bond1,edge1,atom2,bond2,edge2,y_true = batch
+        y_pred = self(atom1,bond1,edge1,atom2,bond2,edge2)
+        reg=norm(self.encoder.g1.inner_3D_layers[0].weight)**2 + norm(self.encoder.g2.inner_3D_layers[0].weight)**2
+        for j in range(1,5):
+            reg=reg+norm(self.encoder.g1.inner_3D_layers[j].weight)**2 + norm(self.encoder.g2.inner_3D_layers[j].weight)**2
+        reg=reg + norm(self.dense1.weight)**2+norm(self.dense2.weight)**2+norm(self.dense3.weight)**2
+        loss = custom_loss(y_true,y_pred) + self.l2reg*reg
+        return(loss)

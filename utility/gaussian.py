@@ -59,12 +59,12 @@ class ConGaussianLayer(nn.Module):
         
     def forward(self, x):
         output_mu  = self.linear1(x)
-        output_mu  = F.relu6(output_mu)
-        #output_mu[output_mu > 1] = 1
+        output_mu  = F.relu(output_mu)
+        output_mu[output_mu > 1] = 1
         #output_mu = torch.clamp(output_mu,max=1)
         output_sig = self.linear2(x)
         output_sig_pos = torch.log(1 + torch.exp(output_sig)) + 1e-06  
-        output_sig_pos  = F.relu6(output_sig_pos)
-        #output_sig_pos[output_sig_pos > 1] = 1
+        output_sig_pos  = F.relu(output_sig_pos)
+        output_sig_pos[output_sig_pos > 1] = 1
         #output_sig_pos = torch.clamp(output_sig_pos,max=1)
         return [output_mu, output_sig_pos]
