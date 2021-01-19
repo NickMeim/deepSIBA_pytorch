@@ -147,10 +147,11 @@ class DeviceDataLoader():
 # defining the space
 fspace = {
     'batch_size' : hp.quniform('batch_size', 64,256,32),
-    'lr' : hp.uniform('lr', 0.0005, 0.01),
+    'lr' : hp.uniform('lr', 0.0001, 0.001),
     'l2reg' : hp.uniform('l2reg', 0.0005, 0.1)
 }
 
+#print(train_params["epochs"])
 def objective(fspace, train_params, model_params,df,smiles,X_atoms, X_bonds, X_edges):
     accs = []
     #model_params["lr"]= fspace["lr"]
@@ -158,13 +159,8 @@ def objective(fspace, train_params, model_params,df,smiles,X_atoms, X_bonds, X_e
     #train_params["batch_size"]= fspace["batch_size"]
 
     bs = int(fspace["batch_size"])
-    NUM_EPOCHS = train_params["epochs"]
-
-    #num_workers=12 mporei na mpei ki ayto sto DataLoader
-    train_loader = DataLoader(trainGen,
-                          batch_size=bs,
-                          num_workers=6,
-                          shuffle=True)
+    NUM_EPOCHS = int(10)
+    
     for i in range(10):
         deepsiba = siamese_model(model_params)
         df = df.sample(frac=1).reset_index(drop=True)
@@ -201,12 +197,12 @@ def objective(fspace, train_params, model_params,df,smiles,X_atoms, X_bonds, X_e
     ave_acc = np.mean(accs,axis = 0)
     return {'loss': -ave_acc ,  'status': STATUS_OK}
 
-fmin_objective = partial(objective, train_params, model_params,df,smiles,X_atoms, X_bonds, X_edges)
+fmin_objective = partial(objective, train_params=train_params, model_params=model_params,df=df,smiles=smiles,X_atoms=X_atoms, X_bonds=X_bonds, X_edges=X_edges)
 
 def run_trials():
 
     trials_step = 10  # how many additional trials to do after loading saved trials. 1 = save after iteration
-    max_trials = 1  # initial max_trials. put something small to not have to wait
+    max_trials = 5  # initial max_trials. put something small to not have to wait
 
     
     try:  # try to load an already saved trials object, and increase the max
