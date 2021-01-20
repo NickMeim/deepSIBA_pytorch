@@ -146,8 +146,7 @@ class DeviceDataLoader():
 #Parameter space
 # defining the space
 fspace = {
-    'batch_size' : hp.quniform('batch_size', 64,256,32),
-    'lr' : hp.uniform('lr', 0.0001, 0.001),
+    'batch_size' : hp.quniform('batch_size', 64,128,16),
     'l2reg' : hp.uniform('l2reg', 0.0005, 0.1)
 }
 
@@ -175,9 +174,8 @@ def objective(fspace, train_params, model_params,df,smiles,X_atoms, X_bonds, X_e
                                   shuffle=True)
         train_loader=DeviceDataLoader(train_loader,device)
         deepsiba=to_device(deepsiba,device)
-        adam = torch.optim.Adam(deepsiba.parameters(),lr=fspace["lr"],weight_decay=0)
+        adam = torch.optim.Adam(deepsiba.parameters(),lr=model_params["lr"],weight_decay=0)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(adam, 'min',factor=0.5,patience=3, min_lr=0.00001, eps=1e-5,verbose=True)
-
         for epoch in range(NUM_EPOCHS):
             deepsiba.train()
             for atom1,bond1,edge1,atom2,bond2,edge2,y_true in train_loader:
