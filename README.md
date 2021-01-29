@@ -1,5 +1,4 @@
-# Under Construction!!!
-# DeepSIBA Implementation in Pytorch
+# Graph Convolutional Layers and model of DeepSIBA: Implementation in Pytorch
 
 # DeepSIBA: chemical structure-based inference of biological alterations using deep learning
 ### Christos Fotis<sup>1(+)</sup>, Nikolaos Meimetis<sup>1+</sup>, Antonios Sardis<sup>1</sup>, Leonidas G.Alexopoulos<sup>1,2(*)</sup>
@@ -25,25 +24,12 @@ $ git clone https://github.com/NickMeim/deepSIBA_pytorch.git
 ```
 # Learning directory overview
 
-This directory contains the required data and source code to implement the machine learning part of deepSIBA. 
-
-- The data, trained_models and screening folders contain a readme with the appropriate download instructions and explanations.
+This directory contains the gcnn layers and the model architecture to implement DeepSIBA in Pytorch. 
 
 The NGF layers folders contain the source code to implement the graph convolution layers and the appropriate featurization. The code was adapted from https://github.com/keiserlab/keras-neural-graph-fingerprint.
 
 The utility folder contains the following functions:
 
-- A Keras training generator and a predicting generator
+- Dataset loaders and generators
 - A function to evaluate the performance of deepSIBA
 - Custom layer and loss function to implement the Gaussian regression layer.
-
-**The notebook deepSIBA_examples describes how to implement and utilize deepSIBA.**
-
-The main functions that implement deepSIBA are:
-
-1. deepSIBA_model.py
-2. deepSIBA_train.py
-3. deepSIBA_ensembles.py
-4. deepSIBA_screening.py
-
-The input required for each function is described thoroughly in the deepSIBA_examples notebook.
