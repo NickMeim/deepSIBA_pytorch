@@ -3,7 +3,15 @@
 /deepSIBA_examples.ipynb
 /deepsiba_screening.py
 /deepsiba_ensembles.py
-/data/
+/data
+/results
+/screening
+/trained_models
+/colab_notebook_deepsiba.ipynb
+/deepSIBA_model_light.py
+/deepsiba_tf2.ipynb
+/hyper_opt.py
+/mymodel_3.pth
 
 __pycache__/
 .ipynb_checkpoints/
