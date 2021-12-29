@@ -92,7 +92,7 @@ class NeuralGraphHidden(nn.Module):
           self.activ=activ
           #self.create_inner_layer_fn = nn.Linear(self.input_size, self.hidden_size, bias=bias)
           if activ is not None:
-            self.relu= nn.RelU()
+            self.relu= nn.ReLU()
         else:
             raise ValueError('NeuralGraphHidden has to be initialised with 4 integers for: num_at_feats, num_bond_feats,hidden size,and max_degree')
 
@@ -108,8 +108,8 @@ class NeuralGraphHidden(nn.Module):
             nn.init.xavier_normal_(m.weight)
             nn.init.zeros_(m.bias)
 
-    def forward(self, x,mask=None):
-        atoms, bonds, edges = x
+    def forward(self, atoms, bonds, edges,mask=None):
+        #atoms, bonds, edges = x
 
         # Import dimensions
         num_samples = list(atoms.size())[0]

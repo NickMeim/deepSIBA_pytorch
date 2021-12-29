@@ -62,16 +62,16 @@ def custom_mse(y_true,y_pred):
     return er
 
 def mse_sliced(y_true,y_pred,th):
-    def mse_similars(y_true,y_pred):
-        #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
-        y_pred=y_pred[:,0]
-        condition = y_pred<=th
-        indices = torch.where(condition)
-        slice_true=y_true[indices[0]]
-        slice_pred=y_pred[indices[0]]
-        mse_sliced = torch.mean(torch.square(slice_pred - slice_true))
-        return mse_sliced
-    return mse_similars
+    #def mse_similars(y_true,y_pred):
+    #(y_pred, sigma) = tf.split(y_pred, num_or_size_splits=[-1, 1], axis=-1)
+    y_pred=y_pred[:,0]
+    condition = y_pred<=th
+    indices = torch.where(condition)
+    slice_true=y_true[indices[0]]
+    slice_pred=y_pred[indices[0]]
+    mse_sliced = torch.mean(torch.square(slice_pred - slice_true))
+    return mse_sliced
+    #return mse_similars
 
 #Model evaluation function
 def model_evaluate(y_pred,Y_cold,thresh,df_cold):

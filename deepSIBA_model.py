@@ -44,44 +44,48 @@ class enc_graph(nn.Module):
 
         self.g1 = NeuralGraphHidden(params["num_atom_features"],params["num_bond_features"],params["graph_conv_width"][0],params["max_degree"] , activ = None, bias = True)
         self.bn1 = nn.BatchNorm1d(num_features=params["graph_conv_width"][0],momentum=0.6)
+        self.act1 = nn.ReLU()
 
         self.g2 = NeuralGraphHidden(params["graph_conv_width"][0],params["num_bond_features"],params["graph_conv_width"][1],params["max_degree"] , activ = None, bias = True)
         self.bn2 = nn.BatchNorm1d(num_features=params["graph_conv_width"][1],momentum=0.6)
+        self.act2 = nn.ReLU()
 
         self.g3 = NeuralGraphHidden(params["graph_conv_width"][1],params["num_bond_features"],params["graph_conv_width"][2],params["max_degree"] , activ = None, bias = True)
         self.bn3 = nn.BatchNorm1d(num_features=params["graph_conv_width"][2],momentum=0.6)
+        self.act3 = nn.ReLU()
 
 
         self.conv1d=nn.Conv1d(params["conv1d_in"], params["conv1d_out"], params["kernel_size"],bias=False)
         nn.init.xavier_normal_(self.conv1d.weight)
         self.bn4= nn.BatchNorm1d(num_features=int((params["graph_conv_width"][1]-params["kernel_size"])/params["kernel_size"]+1),momentum=0.6)
+        self.act4 = nn.ReLU()
         self.dropout = nn.Dropout(params["dropout_encoder"])
         #self.dropout=params["dropout_encoder"]
 
     def forward(self,atoms,bonds,edges):
-        x1 = self.g1([atoms,bonds,edges])
+        x1 = self.g1(atoms,bonds,edges)
         x1=torch.transpose(x1,1,2)
         x1 = self.bn1(x1)
         x1=torch.transpose(x1,1,2)
-        x1 = F.relu(x1)
+        x1 = self.act1(x1)
 
-        x2 = self.g2([x1,bonds,edges])
+        x2 = self.g2(x1,bonds,edges)
         x2=torch.transpose(x2,1,2)
         x2 = self.bn2(x2)
         x2=torch.transpose(x2,1,2)
-        x2 = F.relu(x2)
+        x2 = self.act2(x2)
 
-        x3 = self.g3([x2,bonds,edges])
+        x3 = self.g3(x2,bonds,edges)
         x3=torch.transpose(x3,1,2)
         x3 = self.bn3(x3)
         x3=torch.transpose(x3,1,2)
-        x3 = F.relu(x3)
+        x3 = self.act3(x3)
 
         x4 = self.conv1d(x3)
         x4=torch.transpose(x4,1,2)
         x4 = self.bn4(x4)
         x4=torch.transpose(x4,1,2)
-        x4 = F.relu(x4)
+        x4 = self.act4(x4)
         x4 = self.dropout(x4)
 
         return x4
@@ -103,10 +107,12 @@ class siamese_model(nn.Module):
         self.encoder = enc_graph(params)
         self.conv1 = nn.Conv1d(params["conv1d_dist_in"][0], params["conv1d_dist_out"][0], params["conv1d_dist_kernels"][0],bias=False)
         self.bn1 = nn.BatchNorm1d(num_features=int((params["graph_conv_width"][1]-params["conv1d_dist_kernels"][0])/params["conv1d_dist_kernels"][0]+1),momentum=0.6)
+        self.act1 = nn.ReLU()
         self.drop_dist1 = nn.Dropout(params["dropout_dist"])
         #self.drop_dist1 = params["dropout_dist"]
         self.conv2 = nn.Conv1d(params["conv1d_dist_in"][1], params["conv1d_dist_out"][1], params["conv1d_dist_kernels"][1],bias=False)
         self.bn2 = nn.BatchNorm1d(num_features=int((params["graph_conv_width"][1]-params["conv1d_dist_kernels"][1])/params["conv1d_dist_kernels"][1]+1),momentum=0.6)
+        self.act2 = nn.ReLU()
         self.drop_dist2 = nn.Dropout(params["dropout_dist"])
         #self.drop_dist2 = params["dropout_dist"]
         self.pool = nn.MaxPool1d(params["pool_size"])
@@ -116,14 +122,17 @@ class siamese_model(nn.Module):
         self.out_flat=int(self.out_pool*params["graph_conv_width"][2])
         self.dense1 = nn.Linear(self.out_flat, params["dense_size"][0], bias=True)
         self.bn4 =  nn.BatchNorm1d(num_features=params["dense_size"][0],momentum=0.6)
+        self.act4 = nn.ReLU()
         self.drop_dist4 = nn.Dropout(params["dropout_dist"])
         #self.drop_dist4 = params["dropout_dist"]
         self.dense2 = nn.Linear(params["dense_size"][0], params["dense_size"][1], bias=True)
         self.bn5 = nn.BatchNorm1d(num_features=params["dense_size"][1],momentum=0.6)
+        self.act5 = nn.ReLU()
         self.drop_dist5 = nn.Dropout(params["dropout_dist"])
         #self.drop_dist5 = params["dropout_dist"]
         self.dense3 = nn.Linear(params["dense_size"][1], params["dense_size"][2], bias=True)
         self.bn6 = nn.BatchNorm1d(num_features=params["dense_size"][2],momentum=0.6)
+        self.act6 = nn.ReLU()
         self.drop_dist6 = nn.Dropout(params["dropout_dist"])
         #self.drop_dist6 = params["dropout_dist"]
         if params["ConGauss"]:
@@ -152,14 +161,14 @@ class siamese_model(nn.Module):
         x=torch.transpose(x,1,2)
         x = self.bn1(x)
         x=torch.transpose(x,1,2)
-        x = F.relu(x)
+        x = self.act1(x)
         x = self.drop_dist1(x)
 
         x = self.conv2(x)
         x=torch.transpose(x,1,2)
         x = self.bn2(x)
         x=torch.transpose(x,1,2)
-        x = F.relu(x)
+        x = self.act2(x)
         x = self.drop_dist2(x)
 
         x = torch.transpose(x,1,2)
@@ -171,18 +180,18 @@ class siamese_model(nn.Module):
 
         x = self.dense1(x)
         x = self.bn4(x)
-        x = F.relu(x)
+        x = self.act4(x)
         x = self.drop_dist4(x)
 
 
         x = self.dense2(x)
         x = self.bn5(x)
-        x = F.relu(x)
+        x = self.act5(x)
         x = self.drop_dist5(x)
 
         x = self.dense3(x)
         x = self.bn6(x)
-        x = F.relu(x)
+        x = self.act6(x)
         x = self.drop_dist6(x)
 
         #Final Gaussian Layer to predict mean distance and standard deaviation of distance

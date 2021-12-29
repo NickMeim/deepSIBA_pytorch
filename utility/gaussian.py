@@ -51,7 +51,11 @@ class ConGaussianLayer(nn.Module):
         super(ConGaussianLayer, self).__init__(**kwargs)
         
         self.linear1=nn.Linear(input_shape, output_dim, bias=True)
+        #self.act1 = nn.ReLu()
+        self.act1 = nn.Hardtanh(min_val= 0.0, max_val=1.0)
         self.linear2=nn.Linear(input_shape, output_dim, bias=True)
+        #self.act2 = nn.ReLu()
+        self.act2 = nn.Hardtanh(min_val=0.0, max_val=1.0)
         nn.init.xavier_normal_(self.linear1.weight,gain=nn.init.calculate_gain('relu'))
         nn.init.zeros_(self.linear1.bias)
         nn.init.xavier_normal_(self.linear2.weight,gain=nn.init.calculate_gain('relu'))
@@ -59,12 +63,12 @@ class ConGaussianLayer(nn.Module):
         
     def forward(self, x):
         output_mu  = self.linear1(x)
-        output_mu  = F.relu(output_mu)
-        output_mu[output_mu > 1] = 1
+        output_mu  = self.act1(output_mu)
+        #output_mu[output_mu > 1] = 1
         #output_mu = torch.clamp(output_mu,max=1)
         output_sig = self.linear2(x)
         output_sig_pos = torch.log(1 + torch.exp(output_sig)) + 1e-06  
-        output_sig_pos  = F.relu(output_sig_pos)
-        output_sig_pos[output_sig_pos > 1] = 1
+        output_sig_pos  = self.act2(output_sig_pos)
+        #output_sig_pos[output_sig_pos > 1] = 1
         #output_sig_pos = torch.clamp(output_sig_pos,max=1)
         return [output_mu, output_sig_pos]
