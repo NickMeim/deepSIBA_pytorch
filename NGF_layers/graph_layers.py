@@ -19,6 +19,89 @@ from multiprocessing import cpu_count, Pool
 from copy import deepcopy
 from functools import reduce
 
+def get_default_device():
+    if torch.cuda.is_available():
+        #print('cuda mode')
+        return torch.device('cuda')
+    else:
+        #print('cpu mode')
+        return torch.device('cpu')
+
+def temporal_padding(x, padding=(1, 1), padvalue=0):
+    """Pads the middle dimension of a 3D tensor.
+    Arguments:
+        x: Tensor or variable.
+        padding: Tuple of 2 integers, how many zeros to
+            add at the start and end of dim 1.
+    Returns:
+        A padded 3D tensor.
+    """
+    assert len(padding) == 2
+    pattern = (0, 0, padding[0], padding[1], 0, 0)
+    return F.pad(x, pattern, "constant",padvalue)
+
+
+def neighbour_lookup(atoms, edges,maskvalue=0,include_self=False):
+    ''' Looks up the features of an all atoms neighbours, for a batch of molecules.
+    # Arguments:
+        atoms (K.tensor): of shape (batch_n, max_atoms, num_atom_features)
+        edges (K.tensor): of shape (batch_n, max_atoms, max_degree) with neighbour
+            indices and -1 as padding value
+        maskvalue (numerical): the maskingvalue that should be used for empty atoms
+            or atoms that have no neighbours (does not affect the input maskvalue
+            which should always be -1!)
+        include_self (bool): if True, the featurevector of each atom will be added
+            to the list feature vectors of its neighbours
+    # Returns:
+        neigbour_features (K.tensor): of shape (batch_n, max_atoms(+1), max_degree,
+            num_atom_features) depending on the value of include_self
+    # Todo:
+        - make this function compatible with Tensorflow, it should be quite trivial
+            because there is an equivalent of `T.arange` in tensorflow.
+    '''
+
+    device = get_default_device()
+
+    # The lookup masking trick: We add 1 to all indices, converting the
+    #   masking value of -1 to a valid 0 index.
+    masked_edges = edges + 1
+    # We then add a padding vector at index 0 by padding to the left of the
+    #   lookup matrix with the value that the new mask should get
+    masked_atoms = temporal_padding(atoms, (1, 0), padvalue=maskvalue)
+
+    # Import dimensions
+    atoms_shape = masked_atoms.shape
+    batch_n = atoms_shape[0]
+    lookup_size = atoms_shape[1]
+    num_atom_features = atoms_shape[2]
+
+    edges_shape = masked_edges.shape
+    max_atoms = edges_shape[1]
+    max_degree = edges_shape[2]
+
+    # create broadcastable offset
+    offset_shape = (batch_n, 1, 1)
+    offset = torch.arange(start=0,end=batch_n).reshape(offset_shape)
+    offset *= lookup_size
+    offset = offset.to(device)
+
+    # apply offset to account for the fact that after reshape, all individual
+    #   batch_n indices will be combined into a single big index
+    flattened_atoms = torch.reshape(masked_atoms,(-1,num_atom_features))
+    flattened_edges = torch.reshape(torch.add(masked_edges, offset), (batch_n, -1))
+
+    # Gather flattened
+    flattened_result=flattened_atoms[flattened_edges]
+
+    # Unflatten result
+    output_shape = (batch_n, max_atoms, max_degree, num_atom_features)
+    output = torch.reshape(flattened_result, output_shape)
+
+    if include_self:
+        return torch.cat([torch.unsqueeze(atoms, dim=2), output], dim=2)
+    return output
+
+
 class NeuralGraphHidden(nn.Module):
     ''' Hidden Convolutional layer in a Neural Graph (as in Duvenaud et. al.,
     2015). This layer takes a graph as an input. The graph is represented as by
@@ -118,18 +201,19 @@ class NeuralGraphHidden(nn.Module):
         num_bond_features = list(bonds.size())[-1]
 
         # Create a matrix that stores for each atom, the degree it is
-        atom_degrees = torch.sum((edges.eq(1)), dim=-1, keepdim=True) - 1
+        #atom_degrees = torch.sum((edges.eq(1)), dim=-1, keepdim=True) - 1
+        atom_degrees = torch.sum((~edges.eq(-1)), dim=-1, keepdim=True)
 
         # For each atom, look up the features of it's neighbour
-        #neighbour_atom_features = neighbour_lookup(atoms, edges,atom_degrees, include_self=True)
+        neighbour_atom_features = neighbour_lookup(atoms, edges, include_self=True)
 
         # Sum along degree axis to get summed neighbour features
-        #summed_atom_features = torch.sum(neighbour_atom_features, dim=-2).type(torch.cuda.FloatTensor)
-        summed_atom_features = torch.bmm(edges,atoms)
+        summed_atom_features = torch.sum(neighbour_atom_features, dim=-2).type(torch.cuda.FloatTensor)
+        #summed_atom_features = torch.bmm(edges,atoms)
 
         # Sum the edge features for each atom
-        #summed_bond_features = torch.sum(bonds, dim=-2).type(torch.cuda.FloatTensor)
-        summed_bond_features = torch.bmm(edges,torch.sum(bonds, dim=-2))
+        summed_bond_features = torch.sum(bonds, dim=-2).type(torch.cuda.FloatTensor)
+        #summed_bond_features = torch.bmm(edges,torch.sum(bonds, dim=-2))
 
         # Concatenate the summed atom and bond features
         summed_features = torch.cat([summed_atom_features, summed_bond_features], dim=-1)

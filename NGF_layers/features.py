@@ -119,12 +119,13 @@ def tensorise_smiles(smiles, max_degree=5, max_atoms=None):
     #   as possible (1)
     atom_tensor = np.zeros((n, max_atoms or 1, n_atom_features),dtype='float32')
     bond_tensor = np.zeros((n, max_atoms or 1, max_degree or 1, n_bond_features),dtype='float32')
-    edge_tensor = np.zeros((n, max_atoms or 1, max_atoms or 1),dtype='float32')
-    di=np.diag_indices(max_atoms)
-    for i in range(n):
-        x=edge_tensor[i]
-        x[di]=1
-        edge_tensor[i]=x
+    edge_tensor = -np.ones((n, max_atoms or 1, max_degree or 1), dtype=int)
+    #edge_tensor = np.zeros((n, max_atoms or 1, max_atoms or 1),dtype='float32')
+    #di=np.diag_indices(max_atoms)
+    #for i in range(n):
+    #    x=edge_tensor[i]
+    #    x[di]=1
+    #    edge_tensor[i]=x
 
     for mol_ix, s in enumerate(smiles):
 
@@ -168,7 +169,7 @@ def tensorise_smiles(smiles, max_degree=5, max_atoms=None):
             if new_degree > bond_tensor.shape[2]:
                 assert max_degree is None, 'too many neighours ({0}) in molecule: {1}'.format(new_degree, s)
                 bond_tensor = padaxis(bond_tensor, new_degree, axis=2)
-                #edge_tensor = padaxis(edge_tensor, new_degree, axis=2, pad_value=-1)
+                edge_tensor = padaxis(edge_tensor, new_degree, axis=2, pad_value=-1)
 
             # store bond features
             bond_features_var = np.array(bond_features(bond), dtype=int)
@@ -182,6 +183,7 @@ def tensorise_smiles(smiles, max_degree=5, max_atoms=None):
         #store connectivity matrix
         for a1_ix, neighbours in enumerate(connectivity_mat):
             degree = len(neighbours)
-            edge_tensor[mol_ix, a1_ix, neighbours] = 1.
+            #edge_tensor[mol_ix, a1_ix, neighbours] = 1.
+            edge_tensor[mol_ix, a1_ix, : degree] = neighbours
 
     return atom_tensor, bond_tensor, edge_tensor
